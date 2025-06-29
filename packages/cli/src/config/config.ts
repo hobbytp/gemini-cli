@@ -4,29 +4,30 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import yargs from 'yargs/yargs';
-import { hideBin } from 'yargs/helpers';
-import process from 'node:process';
 import {
+  ApprovalMode,
   Config,
+  DEFAULT_GEMINI_EMBEDDING_MODEL,
+  DEFAULT_GEMINI_MODEL,
+  FileDiscoveryService,
+  GEMINI_CONFIG_DIR as GEMINI_DIR,
+  getCurrentGeminiMdFilename,
   loadServerHierarchicalMemory,
   setGeminiMdFilename as setServerGeminiMdFilename,
-  getCurrentGeminiMdFilename,
-  ApprovalMode,
-  GEMINI_CONFIG_DIR as GEMINI_DIR,
-  DEFAULT_GEMINI_MODEL,
-  DEFAULT_GEMINI_EMBEDDING_MODEL,
-  FileDiscoveryService,
-  TelemetryTarget,
+  TelemetryTarget
 } from '@google/gemini-cli-core';
+import process from 'node:process';
+import { hideBin } from 'yargs/helpers';
+import yargs from 'yargs/yargs';
 import { Settings } from './settings.js';
 
-import { Extension } from './extension.js';
-import { getCliVersion } from '../utils/version.js';
+import { DEFAULT_MODELS_BY_AUTH_TYPE } from '@google/gemini-cli-core';
 import * as dotenv from 'dotenv';
 import * as fs from 'node:fs';
-import * as path from 'node:path';
 import * as os from 'node:os';
+import * as path from 'node:path';
+import { getCliVersion } from '../utils/version.js';
+import { Extension } from './extension.js';
 import { loadSandboxConfig } from './sandboxConfig.js';
 
 // Simple console logger for now - replace with actual logger if available
@@ -55,13 +56,31 @@ interface CliArgs {
   telemetryLogPrompts: boolean | undefined;
 }
 
-async function parseArguments(): Promise<CliArgs> {
+/**
+ * 根据设置中的认证类型获取默认模型
+ */
+function getDefaultModelForAuthType(selectedAuthType?: string): string {
+  if (selectedAuthType === 'openai-api-key') {
+    return process.env.OPENAI_MODEL || DEFAULT_MODELS_BY_AUTH_TYPE['openai-api-key'];
+  }
+  
+  if (selectedAuthType === 'gemini-api-key' || 
+      selectedAuthType === 'vertex-ai' ||
+      selectedAuthType === 'oauth-personal') {
+    return process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
+  }
+  
+  // 默认返回Gemini模型
+  return process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
+}
+
+async function parseArguments(selectedAuthType?: string): Promise<CliArgs> {
   const argv = await yargs(hideBin(process.argv))
     .option('model', {
       alias: 'm',
       type: 'string',
       description: `Model`,
-      default: process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL,
+      default: getDefaultModelForAuthType(selectedAuthType),
     })
     .option('prompt', {
       alias: 'p',
@@ -168,7 +187,7 @@ export async function loadCliConfig(
 ): Promise<Config> {
   loadEnvironment();
 
-  const argv = await parseArguments();
+  const argv = await parseArguments(settings.selectedAuthType);
   const debugMode = argv.debug || false;
 
   // Set the context filename in the server's memoryTool module BEFORE loading memory

@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import { AuthType } from '@google/gemini-cli-core';
 import { Box, Text, useInput } from 'ink';
+import React, { useState } from 'react';
+import { validateAuthMethod } from '../../config/auth.js';
+import { LoadedSettings, SettingScope } from '../../config/settings.js';
 import { Colors } from '../colors.js';
 import { RadioButtonSelect } from './shared/RadioButtonSelect.js';
-import { LoadedSettings, SettingScope } from '../../config/settings.js';
-import { AuthType } from '@google/gemini-cli-core';
-import { validateAuthMethod } from '../../config/auth.js';
 
 interface AuthDialogProps {
   onSelect: (authMethod: string | undefined, scope: SettingScope) => void;
@@ -35,6 +35,7 @@ export function AuthDialog({
     },
     { label: 'Gemini API Key (AI Studio)', value: AuthType.USE_GEMINI },
     { label: 'Vertex AI', value: AuthType.USE_VERTEX_AI },
+    { label: 'OpenAI API Key', value: AuthType.USE_OPENAI },
   ];
 
   let initialAuthIndex = items.findIndex(
